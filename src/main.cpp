@@ -142,7 +142,7 @@ void updatePID() {
   analogWrite(CoilOutputPin, electromagnetSetting);
 
   unsigned long currentTime = millis();
-  if (currentTime - previousSignalTime >= 50) {
+  if (currentTime - previousSignalTime >= 20) {
     sendPacket(HALL_UPDATE, hallValue, updatePID);
     sendPacket(PWM_UPDATE, electromagnetSetting, updatePID);
     previousSignalTime = currentTime;
