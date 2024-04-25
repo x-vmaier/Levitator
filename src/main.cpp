@@ -80,22 +80,20 @@ void loop() {
 void handleSerialInput() {
   Packet packet;
   if (receivePacket(&packet)) {
-    deserialize(&packet, (int *)&packet.data);
-    int identifier = packet.identifier;
-    int data = packet.data;
+    float data = packet.data;
 
-    switch (identifier) {
+    switch (packet.identifier) {
       case SETPOINT_UPDATE:
-        setpoint = float(data);
+        setpoint = data;
         break;
       case KP_UPDATE:
-        Kp = float(data);
+        Kp = data;
         break;
       case KI_UPDATE:
-        Ki = float(data);
+        Ki = data;
         break;
       case KD_UPDATE:
-        Kd = float(data);
+        Kd = data;
         break;
       default:
         break;

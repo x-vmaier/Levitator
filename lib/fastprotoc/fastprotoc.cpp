@@ -1,10 +1,10 @@
 #include "fastprotoc.hpp"
 
-const char START_DELIMITER = '[';
-const char SEPARATOR = ':';
-const char END_DELIMITER = ']';
+const uint8_t START_DELIMITER = 0x7B;   // '{'
+const uint8_t SEPARATOR = 0x3A;         // ':'
+const uint8_t END_DELIMITER = 0x7D;     // '}'
 
-void serialize(Packet *packet, int identifier, int data) {
+void serialize(Packet *packet, int identifier, float data) {
     packet->start_delimiter = START_DELIMITER;
     packet->identifier = identifier;
     packet->separator = SEPARATOR;
@@ -16,11 +16,11 @@ void deserialize(Packet *packet, int *buffer) {
     packet->start_delimiter = buffer[0];
     packet->identifier = buffer[1];
     packet->separator = buffer[2];
-    packet->data = buffer[3];
-    packet->end_delimiter = buffer[4];
+    packet->data = *(float*)&buffer[3]; // Cast buffer to float pointer to correctly assign the float data
+    packet->end_delimiter = buffer[7];
 }
 
-void sendPacket(int identifier, int data, VoidFunctionPtr func) {
+void sendPacket(int identifier, float data, VoidFunctionPtr func) {
     if (Serial.available() > 0)
         // Call func to avoid blocking the main code
         while (Serial.available() > 0) func();

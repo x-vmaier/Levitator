@@ -9,11 +9,11 @@
  * It includes start and end delimiters, identifier, separator, and data.
  */
 typedef struct {
-    char start_delimiter;   ///< Start of packet delimiter
-    int identifier;         ///< Identifier of the packet
-    char separator;         ///< Separator between identifier and data
-    int data;               ///< Data payload of the packet
-    char end_delimiter;     ///< End of packet delimiter
+    uint8_t start_delimiter;    // Start of packet delimiter
+    uint8_t identifier;         // Identifier of the packet
+    uint8_t separator;          // Separator between identifier and data
+    float data;                 // Data payload of the packet
+    uint8_t end_delimiter;      // End of packet delimiter
 } Packet;
 
 typedef void (*VoidFunctionPtr)(void);
@@ -25,7 +25,7 @@ typedef void (*VoidFunctionPtr)(void);
  * @param identifier Identifier of the packet.
  * @param data Data to be included in the packet.
  */
-void serialize(Packet *packet, int identifier, int data);
+void serialize(Packet *packet, int identifier, float data);
 
 /**
  * @brief Deserializes a packet from a buffer.
@@ -46,7 +46,7 @@ void deserialize(Packet *packet, int *buffer);
  * @param data Data to be included in the packet.
  * @param func Callback function to be executed if there is incoming serial data.
  */
-void sendPacket(int identifier, int data, VoidFunctionPtr func);
+void sendPacket(int identifier, float data, VoidFunctionPtr func);
 
 /**
  * @brief Receives a packet from serial communication.
