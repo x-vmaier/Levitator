@@ -29,7 +29,13 @@ public:
      * @param variable The variable to write.
      */
     template<typename T>
-    void set(int address, const T& variable);
+    void set(int address, const T& variable) {
+        T buffer;
+        EEPROM.get(address, buffer);
+        if (variable != buffer) {
+            EEPROM.put(address, variable);
+        }
+    }
 
     /**
      * @brief Reads a variable from EEPROM at a specified address.
@@ -44,7 +50,16 @@ public:
      * @return The value read from EEPROM or defaultValue if the address has not been written before.
      */
     template<typename T>
-    T get(int address, const T& defaultValue);
+    T get(int address, const T& defaultValue) {
+        T buffer;
+        EEPROM.get(address, buffer);
+        if (isnan(buffer)) {
+            set(address, defaultValue);
+            return defaultValue;
+        } else {
+            return buffer;
+        }
+    }
 
     /**
      * @brief Clears the entire EEPROM.
@@ -52,5 +67,9 @@ public:
      * This method clears all data stored in EEPROM by writing zeros
      * to all EEPROM addresses.
      */
-    void clear();
+    void clear() {
+        for (unsigned int i = 0; i < EEPROM.length(); ++i) {
+            EEPROM.update(i, 0);
+        }
+    }
 };
