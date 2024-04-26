@@ -1,13 +1,17 @@
 #include <Arduino.h>
+#include "EEPROMHandler.hpp"
 #include "fastprotoc.hpp"
 
-// Pin Definitions
-#define HallsensorPin A0                                  // Analog pin for Hall sensor
-#define CoilOutputPin 9                                   // Digital pin for coil output
+// Define whether the triangular signal is enabled
+#define TRIANGLE_ENABLE
 
-// Serial Communication Standarts
+// Pin Definitions
+#define HALL_SENSOR_PIN A0                                  // Analog pin for Hall sensor
+#define COIL_OUTPUT_PIN 9                                   // Digital pin for coil output
+
+// Serial Communication Standards
 #define BAUD_RATE 115200
-#define CONNECTION_UPDATE = 0
+#define CONNECTION_UPDATE 0
 #define SETPOINT_UPDATE 1
 #define KP_UPDATE 2
 #define KI_UPDATE 3
@@ -15,37 +19,54 @@
 #define HALL_UPDATE 5
 #define PWM_UPDATE 6
 
+// PID defaults
+#define DEFAULT_SETPOINT 140.0f
+#define DEFAULT_KP 130.0f
+#define DEFAULT_KI 500.0f
+#define DEFAULT_KD 100.0f
+
 // Constants
-const byte ledPins[] = {2, 3, 4, 5, 6, 7, 11, 12, 9, 8};  // Pins connected to LEDs
-const int setpointLow = 140;                              // Lower limit of the setpoint
-const int setpointHigh = 210;                             // Upper limit of the setpoint
-const int integralSaturation = 2000;                      // Integral saturation value
-const unsigned int pidLoopDelay = 10;                     // Microseconds delay for PID loop
-const float dt = 0.1;                                     // Time interval for derivative calculation
-const int numPeriods = 50;                                // Number of previous oscillation periods to consider
-const unsigned long adjustmentInterval = 100;             // Time interval for adjusting PID parameters (in milliseconds)
-const int hallValueThreshold = 340;                       // Threshold value for the Hall sensor indicating no object
-const float tolerance = 10.0;                             // Tolerance for considering the object to be stationary
+const int eeSetpointAddress = 0;                            // EEPROM address of stored setpoint
+const int eeKpAddress = sizeof(float);                      // EEPROM address of stored proportional gain
+const int eeKiAddress = 2 * sizeof(float);                  // EEPROM address of stored integral gain
+const int eeKdAddress = 3 * sizeof(float);                  // EEPROM address of stored derivative gain
+const unsigned long PACKET_SEND_INTERVAL = 20;              // Interval for sending packets (in milliseconds)
+const byte LED_PINS[] = {2, 3, 4, 5, 6, 7, 11, 12, 9, 8};   // Pins connected to LEDs
+const int SETPOINT_LOW = 140;                               // Lower limit of the setpoint
+const int SETPOINT_HIGH = 210;                              // Upper limit of the setpoint
+const int INTEGRAL_SATURATION = 2000;                       // Integral saturation value
+const unsigned int PID_LOOP_DELAY = 10;                     // Microseconds delay for PID loop
+const float DT = 0.1;                                       // Time interval for derivative calculation
+const int NUM_PERIODS = 50;                                 // Number of previous oscillation periods to consider
+const unsigned long ADJUSTMENT_INTERVAL = 100;              // Time interval for adjusting PID parameters (in milliseconds)
+const int HALL_VALUE_THRESHOLD = 340;                       // Threshold value for the Hall sensor indicating no object
+const float TOLERANCE = 10.0;                               // Tolerance for considering the object to be stationary
 
 // PID Values
-float setpoint = 140.0;                                   // Desired setpoint
-float Kp = 100.0;                                         // Proportional gain
-float Ki = 500.0;                                         // Integral gain
-float Kd = 130.0;                                         // Derivative gain
+float setpoint;                                             // Desired setpoint
+float Kp;                                                   // Proportional gain
+float Ki;                                                   // Integral gain
+float Kd;                                                   // Derivative gain
 
-float prevSetpoint = 0.0;
-float prevKp = 0.0;
-float prevKi = 0.0;
-float prevKd = 0.0;
+float prevSetpoint = 0.0;                                   // Previous setpoint
+float prevKp = 0.0;                                         // Previous proportional gain
+float prevKi = 0.0;                                         // Previous integral gain
+float prevKd = 0.0;                                         // Previous derivative gain
+
+// EEPROM Addresses
+EEPROMHandler eepromHandler;
+
 
 // Variables
-int hallValue = 0;                                        // Current Hall sensor reading
-float output = 0.0;                                       // PID output value
-float integral = 0.0;                                     // Integral term of PID controller
-float derivative = 0.0;                                   // Derivative term of PID controller
-float error = 0.0;                                        // Error between setpoint and measured value
-float previousError = 0.0;                                // Previous error for derivative calculation
-unsigned long previousSignalTime = 0;
+int hallValue = 0;                                          // Current Hall sensor reading
+float output = 0.0;                                         // PID output value
+float integral = 0.0;                                       // Integral term of PID controller
+float derivative = 0.0;                                     // Derivative term of PID controller
+float error = 0.0;                                          // Error between setpoint and measured value
+float previousError = 0.0;                                  // Previous error for derivative calculation
+float triangularSignalStep = 20.0;                          // Step value for triangular signal
+unsigned long triangularSignalTime = 0;                     // Time for triangular signal update
+unsigned long previousSignalTime = 0;                       // Time for previous signal update
 
 // Function prototypes
 void handleSerialInput();
@@ -54,29 +75,33 @@ void updatePID();
 void setup() {
   Serial.begin(BAUD_RATE);
 
-  // Initialize coil
-  pinMode(CoilOutputPin, OUTPUT);
+  pinMode(COIL_OUTPUT_PIN, OUTPUT);
 
-  // Initialize LED pins
-  for (byte i = 0; i < sizeof(ledPins); i++) {
-    pinMode(ledPins[i], OUTPUT);
-    digitalWrite(ledPins[i], HIGH);
+  // Initialize LEDs
+  for (byte i = 0; i < sizeof(LED_PINS); i++) {
+    pinMode(LED_PINS[i], OUTPUT);
+    digitalWrite(LED_PINS[i], HIGH);
     delay(40);
   }
 
-  for (byte i = 0; i < sizeof(ledPins); i++) {
-    digitalWrite(ledPins[i], LOW);
+  setpoint = eepromHandler.get(eeSetpointAddress, DEFAULT_SETPOINT);
+  Kp = eepromHandler.get(eeKpAddress, DEFAULT_KP);
+  Ki = eepromHandler.get(eeKiAddress, DEFAULT_KI);
+  Kd = eepromHandler.get(eeKdAddress, DEFAULT_KD);
+
+  // Turn off LEDs after initialization
+  for (byte i = 0; i < sizeof(LED_PINS); i++) {
+    digitalWrite(LED_PINS[i], LOW);
     delay(40);
   }
 }
 
 void loop() {
-  handleSerialInput();              // Check for serial input
-  updatePID();                      // Update PID controller
-  delayMicroseconds(pidLoopDelay);  // Introduce delay for PID loop
+  handleSerialInput();                  // Check for serial input
+  updatePID();                          // Update PID controller
+  delayMicroseconds(PID_LOOP_DELAY);    // Introduce delay for PID loop
 }
 
-// Handle serial input
 void handleSerialInput() {
   Packet packet;
   if (receivePacket(&packet)) {
@@ -85,15 +110,19 @@ void handleSerialInput() {
     switch (packet.identifier) {
       case SETPOINT_UPDATE:
         setpoint = data;
+        eepromHandler.set(eeSetpointAddress, setpoint);
         break;
       case KP_UPDATE:
         Kp = data;
+        eepromHandler.set(eeKpAddress, Kp);
         break;
       case KI_UPDATE:
         Ki = data;
+        eepromHandler.set(eeKiAddress, Ki);
         break;
       case KD_UPDATE:
         Kd = data;
+        eepromHandler.set(eeKdAddress, Kd);
         break;
       default:
         break;
@@ -101,30 +130,29 @@ void handleSerialInput() {
   }
 }
 
-// Update the PID controller
 void updatePID() {
-#ifdef TriangleEnable
-  // Update setpoint every 20ms if enabled
   unsigned long currentTime = millis();
-  if (currentTime - triangularSignalTime >= 20) {
+
+#ifdef TRIANGLE_ENABLE
+  // Update setpoint periodically if enabled
+  if (currentTime - triangularSignalTime >= PACKET_SEND_INTERVAL) {
     triangularSignalTime = currentTime;
     setpoint += triangularSignalStep;
 
-    if (setpoint >= setpointHigh || setpoint <= setpointLow)
+    if (setpoint >= SETPOINT_HIGH || setpoint <= SETPOINT_LOW)
       triangularSignalStep *= -1;
 
-    //Serial.print("Setpoint: ");
-    //Srial.println(setpoint);
+    sendPacket(SETPOINT_UPDATE, setpoint, updatePID);
   }
 #endif
 
   // Read Hall sensor
-  hallValue = analogRead(HallsensorPin);
+  hallValue = analogRead(HALL_SENSOR_PIN);
 
   // Update the PID variables
   error = (setpoint - hallValue);
-  integral = constrain(integral + error * dt, (integralSaturation * -1), integralSaturation);
-  derivative = (error - previousError) / dt;
+  integral = constrain(integral + error * DT, -INTEGRAL_SATURATION, INTEGRAL_SATURATION);
+  derivative = (error - previousError) / DT;
 
   // Calculate the PWM value
   output = 0 - Kp * error - Ki * integral - Kd * derivative;
@@ -134,25 +162,28 @@ void updatePID() {
   int electromagnetSetting = constrain(output, 0, 255);
 
   // Turn off electromagnet if Hall sensor reading indicates no object
-  if (hallValue > 340) {
+  if (hallValue > HALL_VALUE_THRESHOLD) {
     electromagnetSetting = 0;
   }
 
   // Apply the electromagnet setting
-  analogWrite(CoilOutputPin, electromagnetSetting);
+  analogWrite(COIL_OUTPUT_PIN, electromagnetSetting);
 
-  unsigned long currentTime = millis();
-  if (currentTime - previousSignalTime >= 20) {
+  // Send sensor and PWM updates periodically
+  currentTime = millis();
+  if (currentTime - previousSignalTime >= PACKET_SEND_INTERVAL) {
     sendPacket(HALL_UPDATE, hallValue, updatePID);
     sendPacket(PWM_UPDATE, electromagnetSetting, updatePID);
     previousSignalTime = currentTime;
   }
 
+  // Send parameter updates if changed
   if (setpoint != prevSetpoint) sendPacket(SETPOINT_UPDATE, setpoint, updatePID);
   if (Kp != prevKp) sendPacket(KP_UPDATE, Kp, updatePID);
   if (Ki != prevKi) sendPacket(KI_UPDATE, Ki, updatePID);
   if (Kd != prevKd) sendPacket(KD_UPDATE, Kd, updatePID);
 
+  // Update previous values
   prevSetpoint = setpoint;
   prevKp = Kp;
   prevKi = Ki;
