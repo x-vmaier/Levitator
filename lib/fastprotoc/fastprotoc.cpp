@@ -1,3 +1,11 @@
+/**
+ * @file fastprotoc.cpp
+ * @brief Source file for fastprotoc library.
+ * 
+ * This file defines functions for serializing, deserializing, sending, and receiving packets
+ * over serial communication.
+ */
+
 #include "fastprotoc.hpp"
 
 const uint8_t START_DELIMITER = 0x7B;   // '{'
@@ -16,14 +24,13 @@ void deserialize(Packet *packet, int *buffer) {
     packet->start_delimiter = buffer[0];
     packet->identifier = buffer[1];
     packet->separator = buffer[2];
-    packet->data = *(float*)&buffer[3]; // Cast buffer to float pointer to correctly assign the float data
+    packet->data = *(float*)&buffer[3];
     packet->end_delimiter = buffer[7];
 }
 
-void sendPacket(int identifier, float data, VoidFunctionPtr func) {
+void sendPacket(int identifier, float data) {
     if (Serial.available() > 0)
-        // Call func to avoid blocking the main code
-        while (Serial.available() > 0) func();
+        while (Serial.available() > 0) continue;
         
     Packet packet;
     serialize(&packet, identifier, data);

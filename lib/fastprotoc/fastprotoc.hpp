@@ -1,3 +1,11 @@
+/**
+ * @file fastprotoc.hpp
+ * @brief Header file for fastprotoc library.
+ * 
+ * This file declares functions and structures for serializing,
+ * deserializing, sending, and receiving packets over serial communication.
+ */
+
 #pragma once
 
 #include "Arduino.h"
@@ -15,8 +23,6 @@ typedef struct {
     float data;                 // Data payload of the packet
     uint8_t end_delimiter;      // End of packet delimiter
 } Packet;
-
-typedef void (*VoidFunctionPtr)(void);
 
 /**
  * @brief Serializes data into a packet.
@@ -44,9 +50,8 @@ void deserialize(Packet *packet, int *buffer);
  * 
  * @param identifier Identifier of the packet.
  * @param data Data to be included in the packet.
- * @param func Callback function to be executed if there is incoming serial data.
  */
-void sendPacket(int identifier, float data, VoidFunctionPtr func);
+void sendPacket(int identifier, float data);
 
 /**
  * @brief Receives a packet from serial communication.

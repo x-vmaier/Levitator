@@ -1,3 +1,11 @@
+/**
+ * @file EEPROMHandler.hpp
+ * @brief Header file for handling EEPROM operations.
+ * 
+ * This file declares the EEPROMHandler class, which provides methods
+ * for initializing, reading, writing, and clearing data in EEPROM.
+ */
+
 #pragma once
 
 #include <Arduino.h>
