@@ -50,7 +50,7 @@ public:
      * 
      * This method reads a variable from EEPROM at the specified address
      * and returns its value. If the EEPROM address has not been written
-     * before, it returns the defaultValue.
+     * before, it writes the defaultValue to the EEPROM and returns it.
      * 
      * @tparam T The data type of the variable.
      * @param address The EEPROM address to read the variable.
@@ -61,12 +61,11 @@ public:
     T get(int address, const T& defaultValue) {
         T buffer;
         EEPROM.get(address, buffer);
-        if (isnan(buffer)) {
+        if (isnan(buffer) || buffer == 0.0) {
             set(address, defaultValue);
-            return defaultValue;
-        } else {
-            return buffer;
+            EEPROM.get(address, buffer);
         }
+        return buffer;
     }
 
     /**

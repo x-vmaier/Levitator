@@ -12,7 +12,7 @@
 #include "EEPROMHandler.hpp"
 #include "fastprotoc.hpp"
 
-#define TRIANGLE_ENABLE                                     // EXPERIMENTAL: Enable triangle waveform generation
+//#define TRIANGLE_ENABLE                                   // EXPERIMENTAL: Enable triangle waveform generation
 #define HALL_SENSOR_PIN A0                                  // Analog pin for Hall sensor
 #define COIL_OUTPUT_PIN 9                                   // Digital pin for coil output
 
