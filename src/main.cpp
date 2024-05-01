@@ -17,13 +17,12 @@
 #define COIL_OUTPUT_PIN 9                                   // Digital pin for coil output
 
 #define BAUD_RATE 115200                                    // Monitor speed
-#define CONNECTION_UPDATE 0                                 // Connection update packet id
-#define SETPOINT_UPDATE 1                                   // Setpoint update packet id
-#define KP_UPDATE 2                                         // Proportional gain update packet id
-#define KI_UPDATE 3                                         // Integral gain update packet id
-#define KD_UPDATE 4                                         // Derivative gain update packet id
-#define HALL_UPDATE 5                                       // Hall update packet id
-#define PWM_UPDATE 6                                        // PWM update packet id
+#define SETPOINT_UPDATE 0                                   // Setpoint update packet id
+#define KP_UPDATE 1                                         // Proportional gain update packet id
+#define KI_UPDATE 2                                         // Integral gain update packet id
+#define KD_UPDATE 3                                         // Derivative gain update packet id
+#define HALL_UPDATE 4                                       // Hall update packet id
+#define PWM_UPDATE 5                                        // PWM update packet id
 
 #define DEFAULT_SETPOINT 140.0f                             // Default setpoint value
 #define DEFAULT_KP 130.0f                                   // Default proportional gain
