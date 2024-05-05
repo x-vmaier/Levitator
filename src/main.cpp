@@ -37,9 +37,9 @@ const byte LED_PINS[] = {2, 3, 4, 5, 6, 7, 11, 12, 9, 8};   // Pins connected to
 const int SETPOINT_LOW = 140;                               // Lower limit of the setpoint
 const int SETPOINT_HIGH = 210;                              // Upper limit of the setpoint
 const int INTEGRAL_SATURATION = 2000;                       // Integral saturation value
-const unsigned int PID_LOOP_DELAY = 10;                     // Microseconds delay for PID loop
 const float DT = 0.1;                                       // Time interval for derivative calculation
 const unsigned long PACKET_SEND_INTERVAL = 20;              // Interval for sending packets (in milliseconds)
+const unsigned long PACKET_READ_INTERVAL = 100;             // Interval for reading packets (in milliseconds)
 const int HALL_VALUE_THRESHOLD = 340;                       // Threshold value for the Hall sensor indicating no object
 
 float setpoint;                                             // Desired setpoint
@@ -61,6 +61,7 @@ float previousError = 0.0;                                  // Previous error fo
 float triangularSignalStep = 20.0;                          // Step value for triangular signal
 unsigned long triangularSignalTime = 0;                     // Time for triangular signal update
 unsigned long previousSignalTime = 0;                       // Time for previous signal update
+unsigned long previousInputHandleTime = 0;                  // Time for previous input handled
 
 EEPROMHandler eepromHandler;
 
@@ -92,7 +93,6 @@ void setup() {
 void loop() {
   handleSerialInput();
   updatePID();
-  delayMicroseconds(PID_LOOP_DELAY);
 }
 
 /**
