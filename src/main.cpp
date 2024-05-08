@@ -4,8 +4,7 @@
  * 
  * This sketch controls an electromagnet system using a PID controller.
  * It receives input via serial communication and updates the setpoint,
- * proportional, integral, and derivative gains accordingly. It also
- * generates triangular waveforms for testing purposes.
+ * proportional, integral, and derivative gains accordingly.
  */
 
 #include <Arduino.h>
@@ -39,7 +38,7 @@ const int SETPOINT_HIGH = 210;                              // Upper limit of th
 const int INTEGRAL_SATURATION = 2000;                       // Integral saturation value
 const float DT = 0.1;                                       // Time interval for derivative calculation
 const unsigned long PACKET_SEND_INTERVAL = 20;              // Interval for sending packets (in milliseconds)
-const unsigned long PACKET_READ_INTERVAL = 100;             // Interval for reading packets (in milliseconds)
+const unsigned long EEPROM_WRITE_INTERVAL = 500;            // Interval for writing to EEPROM (in milliseconds)
 const int HALL_VALUE_THRESHOLD = 340;                       // Threshold value for the Hall sensor indicating no object
 
 float setpoint;                                             // Desired setpoint
@@ -61,7 +60,7 @@ float previousError = 0.0;                                  // Previous error fo
 float triangularSignalStep = 20.0;                          // Step value for triangular signal
 unsigned long triangularSignalTime = 0;                     // Time for triangular signal update
 unsigned long previousSignalTime = 0;                       // Time for previous signal update
-unsigned long previousInputHandleTime = 0;                  // Time for previous input handled
+unsigned long previousEEPROMTime = 0;                       // Time for previous EEPROM write
 
 EEPROMHandler eepromHandler;
 
@@ -98,22 +97,22 @@ void loop() {
 /**
  * @brief Handles incoming serial input.
  * 
- * This function reads incoming serial data and updates system parameters
- * accordingly based on the received packet identifier.
+ * This function reads incoming serial data, updates system parameters
+ * accordingly based on the received packet identifier, and stores them
+ * to the EEPROM at a certain interval.
  */
 void handleSerialInput() {
   Packet packet;
+
   if (receivePacket(&packet)) {
     float data = packet.data;
 
     switch (packet.identifier) {
       case SETPOINT_UPDATE:
         setpoint = data;
-        eepromHandler.set(eeSetpointAddress, setpoint);
         break;
       case KP_UPDATE:
         Kp = data;
-        eepromHandler.set(eeKpAddress, Kp);
         break;
       case KI_UPDATE:
         Ki = data;
@@ -126,6 +125,15 @@ void handleSerialInput() {
       default:
         break;
     }
+
+    unsigned long currentTime = millis();
+    if (currentTime - previousEEPROMTime < EEPROM_WRITE_INTERVAL) return;
+    previousEEPROMTime = currentTime;
+
+    if (setpoint != prevSetpoint) eepromHandler.set(eeSetpointAddress, setpoint);
+    if (Kp != prevKp) eepromHandler.set(eeKpAddress, Kp);
+    if (Ki != prevKi) eepromHandler.set(eeKiAddress, Ki);
+    if (Kd != prevKd) eepromHandler.set(eeKdAddress, Kd);
   }
 }
 
