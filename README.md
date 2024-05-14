@@ -1,6 +1,6 @@
-# Levitator Arduino Code
+# Levitator
 
-This repository hosts the Arduino code for managing an electromagnet levitator system, developed within the workshop curriculum at HTL Bulme.
+This repository hosts the Arduino code for managing an electromagnet levitator system.
 
 ## Overview
 
