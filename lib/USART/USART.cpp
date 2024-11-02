@@ -4,9 +4,9 @@
 
 #include "USART.hpp"
 
-const uint8_t START_DELIMITER = 0x7B;       // '{'
-const uint8_t SEPARATOR = 0x3A;             // ':'
-const uint8_t END_DELIMITER = 0x7D;         // '}'
+const uint8_t START_DELIMITER = 0x7B; // '{'
+const uint8_t SEPARATOR = 0x3A;       // ':'
+const uint8_t END_DELIMITER = 0x7D;   // '}'
 
 const uint8_t PACKET_SIZE = sizeof(Packet); // Define expected packet size
 static volatile uint8_t receivedBytes = 0;  // Number of bytes received
@@ -14,11 +14,11 @@ static volatile uint8_t receivedBytes = 0;  // Number of bytes received
 // USART initialization
 void USART_init(unsigned long baud)
 {
-    uint16_t ubrr = F_CPU / 16 / baud - 1;
-    UBRR0H = (ubrr >> 8);
-    UBRR0L = ubrr;
-    UCSR0B = (1 << RXEN0) | (1 << TXEN0) | (1 << RXCIE0); // Enable RX and TX, and RX interrupt
-    UCSR0C = (1 << UCSZ01) | (1 << UCSZ00);               // 8 data bits, no parity, 1 stop bit
+    uint16_t ubrr = (F_CPU + (baud * 8)) / (baud * 16) - 1; // Calculate UBRR value for the desired baud rate
+    UBRR0H = (ubrr >> 8);                                   // Set the high byte of UBRR
+    UBRR0L = ubrr;                                          // Set the low byte of UBRR
+    UCSR0B = (1 << RXEN0) | (1 << TXEN0) | (1 << RXCIE0);   // Enable RX, TX, and RX interrupt
+    UCSR0C = (1 << UCSZ01) | (1 << UCSZ00);                 // 8 data bits, no parity, 1 stop bit
 }
 
 // USART transmit function
