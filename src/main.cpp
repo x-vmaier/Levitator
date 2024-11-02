@@ -107,10 +107,11 @@ void ADC_init()
 
 void PWM_init()
 {
-  DDRB |= (1 << COIL_OUTPUT_PIN);
-  TCCR1A = (1 << COM1A1) | (1 << WGM10);             // Fast PWM, 8-bit
-  TCCR1B = (1 << WGM12) | (1 << CS11) | (1 << CS10); // Prescale to 64
-  OCR1A = 0;                                         // Start with 0% duty cycle
+  DDRB |= (1 << COIL_OUTPUT_PIN);                     // Set pin as output
+  TCCR1A = (1 << COM1A1) | (1 << WGM11);              // Clear OC1A on compare match, set at BOTTOM, WGM mode 14
+  TCCR1B = (1 << WGM12) | (1 << WGM13) | (1 << CS10); // WGM mode 14, no prescaling
+  ICR1 = 399;                                         // Set TOP value for ~40 kHz frequency (16 MHz / (399 + 1))
+  OCR1A = 0;                                          // Start with 0% duty cycle
 }
 
 void PID_init()
