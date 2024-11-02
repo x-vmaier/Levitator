@@ -100,9 +100,11 @@ ISR(TIMER2_COMPA_vect)
 // Initialization Functions
 void ADC_init()
 {
-  ADMUX = (1 << REFS0) | (HALL_SENSOR_PIN & ADC_CHANNEL_MASK); // Use AVCC as reference
-  ADCSRA |= (1 << ADPS2) | (1 << ADPS1) | (1 << ADPS0);        // Prescale ADC to 125 kHz
+  ADMUX = (1 << REFS0) | (HALL_SENSOR_PIN & ADC_CHANNEL_MASK); // Set reference to AVcc and select channel
+  ADCSRA |= (1 << ADPS2) | (1 << ADPS1);                       // Set prescaler to 64 (250 kHz ADC clock)
   ADCSRA |= (1 << ADEN);                                       // Enable ADC
+  ADCSRA |= (1 << ADIE);                                       // Enable ADC interrupt
+  ADCSRA |= (1 << ADSC);                                       // Start conversion
 }
 
 void PWM_init()
@@ -122,12 +124,17 @@ void PID_init()
   TIMSK2 = (1 << OCIE2A);             // Enable Timer 2 compare interrupt
 }
 
-uint16_t readADC(uint8_t channel) {
-  // Set the ADC channel
-  ADMUX = (ADMUX & 0xF0) | (channel & ADC_CHANNEL_MASK);
-  ADCSRA |= (1 << ADSC);        // Start ADC conversion
-  while (ADCSRA & (1 << ADSC)); // Wait for conversion to complete
-  return ADC;                   // Return the ADC value
+ISR(ADC_vect)
+{
+  hallSensorValue = ADC; // Read ADC value and store
+  ADCSRA |= (1 << ADSC); // Start next conversion
+}
+
+uint16_t readADC(uint8_t channel)
+{
+  ADMUX = (ADMUX & 0xF0) | (channel & ADC_CHANNEL_MASK); // Select channel
+  ADCSRA |= (1 << ADSC);                                 // Start conversion
+  return hallSensorValue;                                // Return the latest available value
 }
 
 void setPWMDutyCycle(uint8_t dutyCycle)
