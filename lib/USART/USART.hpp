@@ -12,7 +12,7 @@ typedef struct
     uint8_t end_delimiter;
 } Packet;
 
-void USART_init(unsigned long baud);
+void USART_init(uint32_t baud);
 void USART_transmit(uint8_t data);
 uint8_t USART_receive();
 uint8_t USART_available();

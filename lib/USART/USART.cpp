@@ -12,7 +12,7 @@ const uint8_t PACKET_SIZE = sizeof(Packet); // Define expected packet size
 static volatile uint8_t receivedBytes = 0;  // Number of bytes received
 
 // USART initialization
-void USART_init(unsigned long baud)
+void USART_init(uint32_t baud)
 {
     uint16_t ubrr = (F_CPU + (baud * 8)) / (baud * 16) - 1; // Calculate UBRR value for the desired baud rate
     UBRR0H = (ubrr >> 8);                                   // Set the high byte of UBRR
