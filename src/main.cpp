@@ -175,17 +175,19 @@ void handleSerialInput()
     {
     case SETPOINT_UPDATE:
       pidConfig.setpoint = constrain(data, SETPOINT_LOW, SETPOINT_HIGH);
+      storeToEEPROM();
       break;
     case KP_UPDATE:
       pidConfig.Kp = data;
+      storeToEEPROM();
       break;
     case KI_UPDATE:
       pidConfig.Ki = data;
-      storeToEEPROM(); // Store the whole PID config after KI update
+      storeToEEPROM();
       break;
     case KD_UPDATE:
       pidConfig.Kd = data;
-      storeToEEPROM(); // Store the whole PID config after KD update
+      storeToEEPROM();
       break;
     }
   }

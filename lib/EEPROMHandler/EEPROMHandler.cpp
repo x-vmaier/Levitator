@@ -18,6 +18,14 @@ void EEPROMHandler::setPIDConfig(const PIDConfig &config)
 void EEPROMHandler::getPIDConfig(PIDConfig &config)
 {
     eeprom_read_block((void *)&config, (const void *)eePIDConfigAddress, sizeof(PIDConfig));
+
+    // Check for the validity of the signature
+    if (config.signature != CONFIG_SIGNATURE)
+    {
+        // EEPROM is not initialized or contains invalid data, set to defaults
+        config.initDefaults();
+        setPIDConfig(config); // Save defaults back to EEPROM
+    }
 }
 
 // Function to clear the entire EEPROM
