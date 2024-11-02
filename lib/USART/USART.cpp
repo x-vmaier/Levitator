@@ -1,61 +1,116 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
-#include <util/delay.h>
+#include <util/atomic.h>
+#include <string.h>
 
 #include "USART.hpp"
 
 const uint8_t START_DELIMITER = 0x7B; // '{'
 const uint8_t SEPARATOR = 0x3A;       // ':'
 const uint8_t END_DELIMITER = 0x7D;   // '}'
+const uint8_t PACKET_SIZE = sizeof(Packet);
 
-const uint8_t PACKET_SIZE = sizeof(Packet); // Define expected packet size
-static volatile uint8_t receivedBytes = 0;  // Number of bytes received
+#define SERIAL_TX_BUFFER_SIZE 128
+#define SERIAL_RX_BUFFER_SIZE 128
+
+typedef uint8_t tx_buffer_index_t;
+typedef uint8_t rx_buffer_index_t;
+
+static volatile uint8_t tx_buffer[SERIAL_TX_BUFFER_SIZE];
+static volatile tx_buffer_index_t tx_buffer_head = 0;
+static volatile tx_buffer_index_t tx_buffer_tail = 0;
+
+static volatile uint8_t rx_buffer[SERIAL_RX_BUFFER_SIZE];
+static volatile rx_buffer_index_t rx_buffer_head = 0;
+static volatile rx_buffer_index_t rx_buffer_tail = 0;
+
+static volatile bool data_available = false;
 
 // USART initialization
 void USART_init(uint32_t baud)
 {
-    uint16_t ubrr = (F_CPU + (baud * 8)) / (baud * 16) - 1; // Calculate UBRR value for the desired baud rate
-    UBRR0H = (ubrr >> 8);                                   // Set the high byte of UBRR
-    UBRR0L = ubrr;                                          // Set the low byte of UBRR
-    UCSR0B = (1 << RXEN0) | (1 << TXEN0) | (1 << RXCIE0);   // Enable RX, TX, and RX interrupt
-    UCSR0C = (1 << UCSZ01) | (1 << UCSZ00);                 // 8 data bits, no parity, 1 stop bit
+    uint16_t ubrr = (F_CPU / 16 / baud) - 1;                              // Calculate UBRR value for the desired baud rate
+    UBRR0H = (ubrr >> 8);                                                 // Set the high byte of UBRR
+    UBRR0L = ubrr;                                                        // Set the low byte of UBRR
+    UCSR0B = (1 << RXEN0) | (1 << TXEN0) | (1 << RXCIE0) | (1 << UDRIE0); // Enable RX, TX, and RX interrupt
+    UCSR0C = (1 << UCSZ01) | (1 << UCSZ00);                               // 8 data bits, no parity, 1 stop bit
 }
 
-// USART transmit function
+// Check for available data in the RX buffer
+uint8_t USART_available()
+{
+    return (rx_buffer_head - rx_buffer_tail + SERIAL_RX_BUFFER_SIZE) % SERIAL_RX_BUFFER_SIZE;
+}
+
+// Transmit a byte
 void USART_transmit(uint8_t data)
 {
-    while (!(UCSR0A & (1 << UDRE0))); // Wait for empty transmit buffer
-    UDR0 = data;                      // Send data
+    // Wait for empty transmit buffer
+    while (((tx_buffer_head + 1) % SERIAL_TX_BUFFER_SIZE) == tx_buffer_tail); // Wait until there is space in the buffer
+
+    // Add data to the transmit buffer
+    tx_buffer[tx_buffer_head] = data;
+    tx_buffer_head = (tx_buffer_head + 1) % SERIAL_TX_BUFFER_SIZE;
+
+    // Enable the transmit interrupt
+    UCSR0B |= (1 << UDRIE0);
 }
 
-// USART receive function
-uint8_t USART_receive()
+// Flush the transmit buffer
+void USART_flush(void)
 {
-    while (!(UCSR0A & (1 << RXC0))); // Wait for data to be received
-    return UDR0;                     // Get and return received data from the buffer
+    while (tx_buffer_head != tx_buffer_tail); // Wait until all data is sent
+}
+
+// Receive a byte
+uint8_t USART_receive(void)
+{
+    if (rx_buffer_head == rx_buffer_tail)
+    {
+        return 0; // No data available
+    }
+    else
+    {
+        uint8_t data = rx_buffer[rx_buffer_tail];
+        rx_buffer_tail = (rx_buffer_tail + 1) % SERIAL_RX_BUFFER_SIZE;
+        return data;
+    }
+}
+
+void USART_clear()
+{
+    tx_buffer_head = 0;
+    tx_buffer_tail = 0;
+    rx_buffer_head = 0;
+    rx_buffer_tail = 0;
 }
 
 // Interrupt Service Routine for USART RX
 ISR(USART_RX_vect)
 {
-    // When a byte is received, increment the count
-    if (receivedBytes < PACKET_SIZE)
+    if (((rx_buffer_head + 1) % SERIAL_RX_BUFFER_SIZE) != rx_buffer_tail)
     {
-        USART_receive(); // Read the byte to clear the interrupt flag
-        receivedBytes++; // Increment the received bytes counter
+        uint8_t data = UDR0; // Read the received data
+        rx_buffer[rx_buffer_head] = data;
+        rx_buffer_head = (rx_buffer_head + 1) % SERIAL_RX_BUFFER_SIZE;
+        data_available = true; // Set flag indicating data is available
     }
 }
 
-// Return the number of available bytes
-uint8_t USART_available()
+// Interrupt Service Routine for USART TX
+ISR(USART_UDRE_vect)
 {
-    return receivedBytes; // Return the number of received bytes
-}
-
-// Reset the received bytes counter
-void USART_clear()
-{
-    receivedBytes = 0; // Reset the count to zero
+    if (tx_buffer_head != tx_buffer_tail)
+    {
+        // Send the next byte from the transmit buffer
+        UDR0 = tx_buffer[tx_buffer_tail];
+        tx_buffer_tail = (tx_buffer_tail + 1) % SERIAL_TX_BUFFER_SIZE;
+    }
+    else
+    {
+        // Disable the transmit interrupt if there is no data to send
+        UCSR0B &= ~(1 << UDRIE0);
+    }
 }
 
 // Packet serialization
