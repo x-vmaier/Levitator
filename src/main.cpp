@@ -12,7 +12,6 @@
 #define HALL_SENSOR_PIN PC0       // Analog pin for Hall sensor
 #define COIL_OUTPUT_PIN PB1       // Digital pin for coil output
 #define BAUD_RATE 115200          // UART speed
-#define PID_INTERVAL 0.0005       // PID update interval
 #define PWM_LIMIT 255             // PWM maximum limit
 #define SETPOINT_LOW 100          // Minimum setpoint value
 #define SETPOINT_HIGH 300         // Maximum setpoint value
@@ -44,11 +43,13 @@ volatile uint8_t pwmOutput = 0;
 volatile uint16_t hallSensorValue = 0;
 volatile uint16_t latestADCValue = 0;
 volatile unsigned long millisCounter = 0;
+volatile bool pidUpdateFlag = false;
 
 // Function Prototypes
 void ADC_init();
 void PWM_init();
 void PID_init();
+void updatePID();
 uint16_t readADC(uint8_t channel);
 void setPWMDutyCycle(uint8_t dutyCycle);
 void runningLight(uint8_t state);
@@ -77,29 +78,18 @@ int main()
 
   while (1)
   {
+    if (pidUpdateFlag)
+    {
+      pidUpdateFlag = false;
+      updatePID();
+    }
+
 #ifdef SERIAL_COM
     handleSerialInput();
     sendData();
 #endif
   }
   return 0;
-}
-
-// PID Update Function
-ISR(TIMER2_COMPA_vect)
-{
-  millisCounter++;
-
-  // PID calculations
-  hallSensorValue = readADC(HALL_SENSOR_PIN);
-  float error = pidConfig.setpoint - hallSensorValue;
-  integral = constrain(integral + error, -INTEGRAL_LIMIT, INTEGRAL_LIMIT);
-  float derivative = error - prevError;
-  prevError = error;
-
-  float output = -(pidConfig.Kp * error + pidConfig.Ki * integral + pidConfig.Kd * derivative);
-  pwmOutput = (hallSensorValue > HALL_THRESHOLD) ? 0 : constrain(output, 0, PWM_LIMIT);
-  setPWMDutyCycle(pwmOutput);
 }
 
 // Initialization Functions
@@ -132,6 +122,26 @@ ISR(ADC_vect)
 {
   latestADCValue = ADC;  // Read ADC value and store
   ADCSRA |= (1 << ADSC); // Start next conversion
+}
+
+ISR(TIMER2_COMPA_vect)
+{
+  millisCounter++;
+  pidUpdateFlag = true;
+}
+
+void updatePID()
+{
+  // PID calculations
+  hallSensorValue = readADC(HALL_SENSOR_PIN);
+  float error = pidConfig.setpoint - hallSensorValue;
+  integral = constrain(integral + error, -INTEGRAL_LIMIT, INTEGRAL_LIMIT);
+  float derivative = error - prevError;
+  prevError = error;
+
+  float output = -(pidConfig.Kp * error + pidConfig.Ki * integral + pidConfig.Kd * derivative);
+  pwmOutput = (hallSensorValue > HALL_THRESHOLD) ? 0 : constrain(output, 0, PWM_LIMIT);
+  setPWMDutyCycle(pwmOutput);
 }
 
 uint16_t readADC(uint8_t channel)
