@@ -6,6 +6,8 @@
 #include "USART.hpp"
 #include "EEPROMHandler.hpp"
 
+// #define SERIAL_COM // Activate serial communication
+
 // Configuration Macros
 #define HALL_SENSOR_PIN PC0       // Analog pin for Hall sensor
 #define COIL_OUTPUT_PIN PB1       // Digital pin for coil output
@@ -39,7 +41,8 @@ const uint8_t LED_COUNT = sizeof(LED_PINS) / sizeof(LED_PINS[0]);
 float prevError = 0.0f, integral = 0.0f;
 unsigned long lastPacketTime = 0, lastEEPROMTime = 0;
 volatile uint8_t pwmOutput = 0;
-volatile int16_t hallSensorValue = 0;
+volatile uint16_t hallSensorValue = 0;
+volatile uint16_t latestADCValue = 0;
 volatile unsigned long millisCounter = 0;
 
 // Function Prototypes
@@ -74,8 +77,10 @@ int main()
 
   while (1)
   {
+#ifdef SERIAL_COM
     handleSerialInput();
     sendData();
+#endif
   }
   return 0;
 }
@@ -104,7 +109,6 @@ void ADC_init()
   ADCSRA |= (1 << ADPS2) | (1 << ADPS1);                       // Set prescaler to 64 (250 kHz ADC clock)
   ADCSRA |= (1 << ADEN);                                       // Enable ADC
   ADCSRA |= (1 << ADIE);                                       // Enable ADC interrupt
-  ADCSRA |= (1 << ADSC);                                       // Start conversion
 }
 
 void PWM_init()
@@ -126,7 +130,7 @@ void PID_init()
 
 ISR(ADC_vect)
 {
-  hallSensorValue = ADC; // Read ADC value and store
+  latestADCValue = ADC;  // Read ADC value and store
   ADCSRA |= (1 << ADSC); // Start next conversion
 }
 
@@ -134,7 +138,7 @@ uint16_t readADC(uint8_t channel)
 {
   ADMUX = (ADMUX & 0xF0) | (channel & ADC_CHANNEL_MASK); // Select channel
   ADCSRA |= (1 << ADSC);                                 // Start conversion
-  return hallSensorValue;                                // Return the latest available value
+  return latestADCValue;                                 // Return the latest available value
 }
 
 void setPWMDutyCycle(uint8_t dutyCycle)
